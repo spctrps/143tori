@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4MPHR4 Hack Terminal</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --panel: rgba(10, 10, 10, 0.92);
+      --green: #9cff57;
+      --purple: #b08cff;
+      --text: #dcdcdc;
+      --muted: #bbff93;
+      --border: rgba(156, 255, 87, 0.22);
+      --glow-green: rgba(156, 255, 87, 0.25);
+      --glow-purple: rgba(176, 140, 255, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    font-family: 'Orbitron', sans-serif;
+    color: var(--text);
+    background:
+       url('bg.jpg') no-repeat center center / cover,
+       linear-gradient(135deg, #010101, #090909 60%, #020202);
+    overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(156, 255, 87, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(176, 140, 255, 0.02) 1px, transparent 1px);
+      background-size: 28px 28px;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .wrap {
+      width: min(94vw, 760px);
+      padding: 18px;
+    }
+
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .terminal {
+      height: min(68vh, 560px);
+      padding: 18px 18px 14px;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.02) inset,
+        0 0 22px var(--glow-green),
+        0 0 38px var(--glow-purple);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .screen {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--green) transparent;
+    }
+
+    .line {
+      white-space: pre-wrap;
+      font-size: 17px;
+      line-height: 1.5;
+      margin: 0 0 6px;
+      text-shadow: 0 0 8px rgba(156, 255, 87, 0.1);
+    }
+
+    .prompt {
+      color: var(--green);
+    }
+
+    .purple { color: var(--purple); }
+    .green { color: var(--green); }
+
+    .highlight-white {
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+    }
+
+    .highlight-red {
+      color: #ff5757;
+      text-shadow: 0 0 8px rgba(255, 87, 87, 0.35);
+    }
+
+    .highlight-yellow {
+      color: #ffd957;
+      text-shadow: 0 0 8px rgba(255, 217, 87, 0.35);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      margin-left: 2px;
+      color: var(--green);
+      animation: blink 0.9s infinite;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      flex: 1;
+      border: 1px solid rgba(156, 255, 87, 0.34);
+      border-radius: 999px;
+      padding: 13px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      background: linear-gradient(180deg, rgba(156,255,87,0.16), rgba(156,255,87,0.05));
+      color: var(--green);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 0 12px rgba(156, 255, 87, 0.08);
+    }
+
+    button:hover {
+      box-shadow: 0 0 18px rgba(156, 255, 87, 0.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topline">
+      <div>4MPHR4 HACK TERMINAL</div>
+      <div id="status">idle</div>
+    </div>
+
+    <div class="terminal">
+      <div id="screen" class="screen"></div>
+
+      <div class="controls">
+        <button id="injectBtn">Proceed</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const screen = document.getElementById("screen");
+    const statusEl = document.getElementById("status");
+    const injectBtn = document.getElementById("injectBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    // Глобальный курсор, который всегда в конце последней строки
+    let currentCursor = null;
+
+    const lines = [
+      ">> SELECT amphra",
+      ">> FROM heart",
+      ">> WHERE name = 'Tori'",
+      ">> SUCCESS",
+      ">> SELECT amphra",
+      ">> JOIN tori",
+      ">> SUCCESS",
+      ">> ACCESS TO amphra.heart GRANTED",
+      ">> WARNING! Hacked my heart perfectly. Love you, sunshine.💚"
+    ];
+
+    let index = 0;
+    let busy = false;
+
+    function scrollBottom() {
+      screen.scrollTop = screen.scrollHeight;
+    }
+
+    function moveCursorToLine(lineEl) {
+      if (currentCursor) {
+        currentCursor.remove();
+        currentCursor = null;
+      }
+
+      const cursor = document.createElement("span");
+      cursor.className = "cursor";
+      cursor.textContent = "|";
+
+      lineEl.appendChild(cursor);
+      currentCursor = cursor;
+
+      scrollBottom();
+    }
+
+    function addLine(text, cls = "") {
+      const p = document.createElement("p");
+      p.className = `line ${cls}`;
+      p.textContent = text;
+      screen.appendChild(p);
+
+      moveCursorToLine(p);
+      scrollBottom();
+    }
+
+    // Парсер: разбивает строку на части (ключевые фразы и обычный текст)
+    function tokenizeLine(text) {
+      const tokens = [];
+
+      const rules = [
+        { pattern: /Hacked my heart perfectly. Love you, sunshine./g, cls: "highlight-yellow" },
+        { pattern: /ACCESS TO/gi, cls: "highlight-yellow" },
+        { pattern: /WARNING!/gi, cls: "highlight-red" },
+        { pattern: /GRANTED/gi, cls: "highlight-yellow" },
+        { pattern: /SUCCESS/gi, cls: "highlight-yellow" },
+        { pattern: /PROCEED/gi, cls: "highlight-yellow" },
+        { pattern: /SELECT/gi, cls: "highlight-white" },
+        { pattern: /FROM/gi, cls: "highlight-white" },
+        { pattern: /WHERE/gi, cls: "highlight-white" },
+        { pattern: /JOIN/gi, cls: "highlight-white" },
+      ];
+
+      const matches = [];
+
+      for (const rule of rules) {
+        let m;
+        while ((m = rule.pattern.exec(text)) !== null) {
+          matches.push({
+            start: m.index,
+            end: m.index + m[0].length,
+            text: m[0],
+            cls: rule.cls,
+          });
+        }
+        rule.pattern.lastIndex = 0;
+      }
+
+      matches.sort((a, b) => a.start - b.start);
+
+      const tokensResult = [];
+      let pos = 0;
+      for (const match of matches) {
+        if (match.start > pos) {
+          tokensResult.push({ text: text.slice(pos, match.start), highlight: false });
+        }
+        tokensResult.push({ text: match.text, highlight: true, cls: match.cls });
+        pos = match.end;
+      }
+      if (pos < text.length) {
+        tokensResult.push({ text: text.slice(pos), highlight: false });
+      }
+
+      return tokensResult;
+    }
+
+    // Анимированная строка с выделением
+    function addTypingLineWithHighlights(text, cls = "") {
+      return new Promise(resolve => {
+        try {
+          const p = document.createElement("p");
+          p.className = `line ${cls}`;
+          screen.appendChild(p);
+
+          if (currentCursor) {
+            currentCursor.remove();
+            currentCursor = null;
+          }
+
+          const cursor = document.createElement("span");
+          cursor.className = "cursor";
+          cursor.textContent = "|";
+          p.appendChild(cursor);
+
+          const tokens = tokenizeLine(text);
+
+          let typeIndex = 0;
+          const fullText = text;
+
+          function step() {
+            if (typeIndex < fullText.length) {
+              let charInToken = 0;
+              let tokenIndex = 0;
+              let accumulated = 0;
+
+              for (let i = 0; i < tokens.length; i++) {
+                const len = tokens[i].text.length;
+                if (typeIndex < accumulated + len) {
+                  tokenIndex = i;
+                  charInToken = typeIndex - accumulated;
+                  break;
+                }
+                accumulated += len;
+              }
+
+              const token = tokens[tokenIndex];
+              const nextChar = token.text[charInToken];
+
+              if (token.highlight) {
+                if (charInToken === 0) {
+                  const span = document.createElement("span");
+                  span.className = token.cls;
+                  p.insertBefore(span, cursor);
+                  span.textContent += nextChar;
+                } else {
+                  const spans = p.querySelectorAll("span:not(.cursor)");
+                  const lastSpan = spans[spans.length - 1];
+                  if (lastSpan) {
+                    lastSpan.textContent += nextChar;
+                  } else {
+                    cursor.insertAdjacentText("beforebegin", nextChar);
+                  }
+                }
+              } else {
+                cursor.insertAdjacentText("beforebegin", nextChar);
+              }
+
+              typeIndex++;
+              scrollBottom();
+              setTimeout(step, 24);
+            } else {
+              currentCursor = cursor;
+              resolve();
+            }
+          }
+
+          step();
+        } catch (err) {
+          // В случае ошибки тоже разрешаем продолжение
+          console.error(err);
+          resolve();
+        }
+      });
+    }
+
+    async function injectLine() {
+      if (busy) return;
+      busy = true;
+      statusEl.textContent = "proceeding...";
+      injectBtn.disabled = true;
+
+      try {
+        if (index < lines.length) {
+          const cls = index % 2 === 0 ? "green" : "purple";
+          await addTypingLineWithHighlights(lines[index], cls);
+          index++;
+        } else {
+          await addTypingLine(">> sequence complete. press reset to run again.", "purple");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      statusEl.textContent = index >= lines.length ? "complete" : "running";
+      injectBtn.disabled = false;
+      busy = false;
+    }
+
+    function resetTerminal() {
+      screen.innerHTML = "";
+      index = 0;
+      statusEl.textContent = "idle";
+      busy = false; // важно: сбрасываем busy
+
+      if (currentCursor) {
+        currentCursor.remove();
+        currentCursor = null;
+      }
+
+      addLine(">> READY TO HACK...", "green");
+      addLine(">> press PROCEED to start the sequence.", "purple");
+    }
+
+    // Гарантируем, что слушатели привязаны один раз и не удаляются
+    injectBtn.addEventListener("click", injectLine);
+    resetBtn.addEventListener("click", resetTerminal);
+
+    resetTerminal();
+  </script>
+</body>
+</html>
